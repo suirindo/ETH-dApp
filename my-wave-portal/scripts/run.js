@@ -19,9 +19,12 @@ const main = async () => {
         hre.ethers.utils.formatEther(contractBalance)
     );
     
-    // waveを取得
-    let waveTxn = await waveContract.wave("A message!");
+    // 2回waveを送るシミュレーションを行う
+    const waveTxn = await waveContract.wave("This is wave #1!");
     await waveTxn.wait(); // トランザクションが承認されるのを待つ
+
+    const waveTxn2 = await waveContract.wave("This is wave #2!");
+    await waveTxn2.wait(); // トランザクションが承認されるのを待つ
 
     // コントラクトの残高を取得し、Waveを取得した後の結果を出力
     contractBalance = await hre.ethers.provider.getBalance(waveContract.address);
@@ -33,6 +36,7 @@ const main = async () => {
     let allWaves = await waveContract.getAllWaves();
     console.log(allWaves);
 };
+
 const runMain = async () => {
     try {
         await main();
