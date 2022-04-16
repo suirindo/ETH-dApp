@@ -10,6 +10,10 @@ import "@openzeppelin/contracts/utils/Counters.sol";
 
 import "hardhat/console.sol";
 
+// Base64.solコントラクトからSVGとJSONをBase64に変換する関数をインポートする
+import { Base64 } from "./libraries/Base64.sol"; 
+
+
 // contractは1つのconstrucotしか持つことができない
 // constructorはスマコンの作成時に一度だけ実行され、contractの状態を初期化するために使用される
 // constructorはコントラクトがデプロイされた時に初めて実行される
@@ -27,12 +31,12 @@ contract MyEpicNFT is ERC721URIStorage {
     // SVGコードの作成
     // 変更されるのは、表示される単語だけ
     // すべてのNFTにSVGコードを適用するために、baseSvg変数を作成する
-    string baseSvg = "<svg xmlns = 'http://www.w3.org/2000/svg' preserveAspectRatio='xMinYMin meet' viewBox = '0 0 350 350'><style>.base { fill: white; font-family: serif; font-size: 24px; }</style> <rect wiidth = '100%' height = '100%' fill = 'black' /><text x='50%' y='50%' class='base' dominant-baseline='middle' text-anchor='middle'>";
+    string baseSvg = "<svg xmlns = 'http://www.w3.org/2000/svg' preserveAspectRatio='xMinYMin meet' viewBox = '0 0 350 350'><style>.base { fill: white; font-family: serif; font-size: 24px; }</style> <rect width = '100%' height = '100%' fill = 'black' /><text x='50%' y='50%' class='base' dominant-baseline='middle' text-anchor='middle'>";
 
     // ３つの配列 string[]に、それぞれランダムな単語を設定してみる
     string[] firstWords = ["Ghost","Stand","Inner","Kenji","Shosa","Heart"];
-    string[] secondWords = ["AI","Memory","Alone","Universe ","Kawai ","Bato"];
-    string[] thirdWords = ["Tachikoma","Boma","Complex ","Kacho","Origa","Togusa"];
+    string[] secondWords = ["AI","Memory","Alone","Universe","Kawai ","Bato"];
+    string[] thirdWords = ["Tachikoma","Boma","Complex","Kacho","Origa","Togusa"];
 
     // NFT トークンの名前とそのシンボルを渡す
     constructor() ERC721 ("SquareNFT", "SQUARE") {
@@ -86,13 +90,43 @@ contract MyEpicNFT is ERC721URIStorage {
         string memory second = pickRandomSecondWord(newItemId);
         string memory third  = pickRandomThirdWord(newItemId);
 
+        // 3つの単語を連携して格納する変数 combinedWord を定義する
+        string memory combinedWord = string(abi.encodePacked(first, second, third));
+
         //3つの単語を連結して、<text>タグと<svg>タグで閉じる
         string memory finalSvg = string(abi.encodePacked(baseSvg, first, second, third, "</text></svg>"));
 
         // NFTに出力されるテキストをターミナルに出力する
-        console.log("\n------------------");
+        console.log("\n----SVG data-----");
         console.log(finalSvg);
         console.log("------------------\n");
+
+        // JSONファイルを所定の位置に取得し、base64としてエンコードする
+        // この処理によって、メタデータがオンチェーンに書き込まれ、コントラクトの中に組み込まれる
+        string memory json = Base64.encode(
+            bytes(
+                string(
+                    abi.encodePacked(
+                        '{"name": "',
+                        // NFTのタイトルを生成される言葉に設定する
+                        combinedWord,
+                        '", "description": "A highly aclaimed collection of squares.", "image": "data:image/svg+xml;base64,',
+                        // SVGをbase64でエンコードした結果を追加する
+                        Base64.encode(bytes(finalSvg)),
+                        '"}'
+                    )
+                )
+            )
+        );
+
+        // データの先頭に data:application/json;base64 を追加する
+        string memory finalTokenUri = string(
+            abi.encodePacked("data:application/json;base64,", json)
+        );
+
+        console.log("\n----- Token URI ----");
+        console.log(finalTokenUri);
+        console.log("---------------------\n");
 
 
         //msg.sender を使ってNFTを送信者にMintする
@@ -100,9 +134,8 @@ contract MyEpicNFT is ERC721URIStorage {
 
         // NFTデータを設定する
         _setTokenURI(
-            newItemId,
-             "We will set tokenURI later."
-            );
+            // 自分のSVGデータが組み込まれたJSONのメタデータをコントラクトと紐づける
+            newItemId,finalTokenUri);
 
         // NFTがいつ誰に作成されたかを確認する
         console.log("An NFT w/ ID %s has been minted to %s", newItemId, msg.sender);
